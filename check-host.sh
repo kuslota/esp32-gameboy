@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")"
-for test in tests/test_core.py tests/test_state_file.py tests/test_battery_file.py tests/test_game_catalog.py tests/test_session.py; do
+for test in tests/test_core.py tests/test_rtc.py tests/test_state_file.py tests/test_battery_file.py tests/test_game_catalog.py tests/test_session.py; do
   python3 "$test"
 done
 gameboy_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/gameboy-report.XXXXXX")

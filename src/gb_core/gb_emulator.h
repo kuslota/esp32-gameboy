@@ -40,6 +40,15 @@ bool gb_emulator_save_dirty(void);
 bool gb_emulator_save_copy(uint8_t *dst, size_t size);
 bool gb_emulator_save_load(const uint8_t *src, size_t size);
 void gb_emulator_save_clean(void);
+/* MBC3 clock cartridges (0x0F, 0x10) append the 48-byte BGB/VBA-M clock footer to the save.
+ * save_load also accepts the RAM-only and 44-byte-footer forms other emulators write. */
+#define GB_RTC_FOOTER_BYTES 48u
+bool gb_emulator_rom_save_accepted(const uint8_t *rom, size_t rom_size, size_t save_size);
+/* Seconds on a clock that keeps running while the device is off, or false if there is none.
+ * The cartridge clock follows it, so time passes across pauses and power-off. Without one the
+ * cartridge clock advances with emulated time only. Called once per frame from the core task. */
+typedef bool (*gb_emulator_clock_fn)(int64_t *seconds);
+void gb_emulator_set_clock(gb_emulator_clock_fn clock);
 
 /* One 535/536-sample mono PCM block per frame, exactly 32 kHz over time. */
 size_t gb_emulator_audio_samples(int16_t *dst, size_t capacity);

@@ -12,14 +12,15 @@ No commercial cartridge is included.
 
 ## Supported cartridges and limits
 
-- DMG and dual-mode cartridges up to 2 MiB: ROM-only, MBC1, MBC2, MBC3 without
-  RTC, and MBC5 without rumble.
-- CGB-only and RTC cartridges are rejected.
+- DMG and dual-mode cartridges up to 2 MiB: ROM-only, MBC1, MBC2, MBC3 with or
+  without its clock (0x0F, 0x10), and MBC5 without rumble.
+- CGB-only cartridges are rejected.
 - The ROM catalog lists `.gb` and `.gbc` files; dual-mode cartridges run in DMG
   mode.
 - Save states identify their ROM by CRC32 and exact size, and carry the core
   serializer version. A state written by a different core build is rejected.
-- Battery `.sav` files are raw cartridge RAM. `game.gb` saves to `game.sav`;
+- Battery `.sav` files are raw cartridge RAM; clock cartridges append the 48-byte
+  BGB/VBA-M clock footer. `game.gb` saves to `game.sav`;
   other names, such as `game.gbc`, append `.sav`. The checkpoint is
   `<rom file>.state`. Both keep a `.bak` copy of the previous version.
 - Only one emulator can run at a time; the core is a singleton.
@@ -98,11 +99,18 @@ It returns false once the core has stopped on an illegal opcode;
 - `gb_emulator_audio_samples(dst, capacity)` copies the mono signed 16-bit PCM
   of the last frame: 535 or 536 samples, exactly 32 kHz over time. Provide room
   for 536. It returns 0 when there is nothing new.
-- `gb_emulator_validate_rom` and `gb_emulator_rom_save_size` inspect a ROM
-  without starting it.
+- `gb_emulator_validate_rom`, `gb_emulator_rom_save_size` and
+  `gb_emulator_rom_save_accepted` inspect a ROM without starting it. A clock
+  cartridge writes RAM plus `GB_RTC_FOOTER_BYTES`, but also loads RAM-only and
+  44-byte-footer saves from other emulators.
+- `gb_emulator_set_clock(fn)` supplies seconds from a clock that keeps running
+  while the device is off. The cartridge clock follows it, catching up after
+  pauses, power-off and checkpoint restores. Without one, or while `fn` returns
+  false, the cartridge clock advances with emulated time.
 - `gb_emulator_save_size/dirty/copy/load/clean` expose battery RAM. `save_dirty`
-  turns true when the game writes cartridge RAM; call `save_clean` after
-  copying it out.
+  turns true when the game writes cartridge RAM, or when the cartridge clock
+  advances on emulated time (there is no wall-clock anchor to recover it from);
+  call `save_clean` after copying it out.
 - `gb_emulator_state_size/copy/load` capture and restore a full snapshot.
 
 ### Video conversion (`gb_video.h`)
@@ -129,7 +137,8 @@ image are never touched.
   subdirectories; `truncated` is set when more than `capacity` files exist.
   `game_catalog_paths` derives a ROM's save path.
 - `rom_file.h`: `rom_file_read` reads a file that must be exactly the expected
-  size and never writes.
+  size and never writes. `rom_file_read_upto` accepts any non-empty file up to
+  the capacity and reports its length.
 - `save_file.h`: `save_file_replace` writes a `.tmp` file, flushes it, rotates
   the old file to `.bak` and renames the new one into place. A failure leaves
   the previous file intact.

@@ -34,9 +34,21 @@ with tempfile.TemporaryDirectory(prefix="gb-battery-") as tmp:
     assert bytes(output) == new
     assert files.rom_file_read(str(path).encode(), output, len(old) - 1) == 2
     assert files.rom_file_read(str(work / "absent.sav").encode(), output, len(old)) == 1
+    # Bounded reads accept any non-empty file up to the capacity and report its length.
+    files.rom_file_read_upto.argtypes = [C.c_char_p, ptr, C.c_size_t, C.POINTER(C.c_size_t)]
+    files.rom_file_read_upto.restype = C.c_int
+    short = work / "short.sav"; short.write_bytes(new[:100])
+    big = (C.c_uint8 * (len(new) + 48))(); length = C.c_size_t()
+    assert files.rom_file_read_upto(str(path).encode(), big, len(big), C.byref(length)) == 0
+    assert length.value == len(new) and bytes(big[:len(new)]) == new
+    assert files.rom_file_read_upto(str(short).encode(), big, len(big), C.byref(length)) == 0 and length.value == 100
+    assert files.rom_file_read_upto(str(path).encode(), big, 100, C.byref(length)) == 2
+    (work / "empty.sav").write_bytes(b"")
+    assert files.rom_file_read_upto(str(work / "empty.sav").encode(), big, len(big), C.byref(length)) == 2
+    assert files.rom_file_read_upto(str(work / "absent.sav").encode(), big, len(big), C.byref(length)) == 1
     # The temporary file cannot be opened, so the current save and backup survive.
     Path(str(path) + ".tmp").mkdir()
     assert not files.save_file_replace(str(path).encode(), old_buffer, len(old))
     assert path.read_bytes() == new
     assert Path(str(path) + ".bak").read_bytes() == old
-print("PASS: exact battery reads, atomic replacement, backup, and failed-write preservation")
+print("PASS: exact and bounded battery reads, atomic replacement, backup, and failed-write preservation")

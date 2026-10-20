@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -8,3 +9,5 @@ typedef enum {
 
 /* Read exactly capacity bytes, rejecting shorter/longer files. Never writes. */
 rom_file_status_t rom_file_read(const char *path, uint8_t *buffer, size_t capacity);
+/* Read a non-empty file of at most capacity bytes; *length receives its size. Never writes. */
+rom_file_status_t rom_file_read_upto(const char *path, uint8_t *buffer, size_t capacity, size_t *length);

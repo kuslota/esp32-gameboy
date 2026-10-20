@@ -6,9 +6,9 @@
   "files": {
     "peanut_gb.h": {
       "upstream_sha256": "159558641bb5f89f96679af91a58d7a089331af1a71dba601f2d19dcd9468d25",
-      "local_sha256": "1a1a2ff5a9c63302b287a4d2f7467bf6faaf4e52706054b055ded43782668788",
+      "local_sha256": "fe709126480d60e5839595008fb0b23753a405b350b5c9c2b16c0eb740e7f38b",
       "modified": true,
-      "origin": "Peanut-GB (Mahyar Koshkouei, MIT) -> CrankBoy libs/peanut_gb.h (MIT) -> PaperBoy e70b2936 snapshot; Playdate-specific code removed; include changed to esp32_crankboy_port.h"
+      "origin": "Peanut-GB (Mahyar Koshkouei, MIT) -> CrankBoy libs/peanut_gb.h (MIT) -> PaperBoy e70b2936 snapshot; Playdate-specific code removed; include changed to esp32_crankboy_port.h; MBC3 clock fixes (register bank bound 0x08-0x0C, write masks and save-dirty flag, no-RAM read guard, sticky day carry)"
     },
     "peanut_gb_core.h": {
       "upstream_sha256": "b7028c419d1d5c4297f25cad69928781cb3d0c35948fb0fa0291d7e20dd3ea96",

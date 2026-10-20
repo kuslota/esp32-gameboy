@@ -475,7 +475,8 @@ CB_FAST_CODE void gb_catch_up_rtc_direct(gb_s* gb, unsigned int seconds_to_add)
     gb->rtc_bits.hour = new_hour;
     gb->rtc_bits.yday = (uint8_t)(new_days & 0xFF);
 
-    uint8_t high_byte = gb->rtc_bits.high & 0x40;
+    /* esp32-gameboy: keep the halt bit and a sticky day-carry bit; only the game clears carry. */
+    uint8_t high_byte = gb->rtc_bits.high & 0xC0;
     high_byte |= (new_days >> 8) & 0x01;
     if (day_overflow)
     {
@@ -1187,7 +1188,8 @@ __shell uint8_t __gb_read_full(gb_s* gb, const uint_fast16_t addr)
 
             if (gb->mbc == 3 && gb->cart_ram_bank >= 0x08)
             {
-                return gb->latched_rtc[gb->cart_ram_bank - 0x08];
+                /* esp32-gameboy: only 0x08-0x0C select clock registers. */
+                return gb->cart_ram_bank <= 0x0C ? gb->latched_rtc[gb->cart_ram_bank - 0x08] : 0xFF;
             }
             else if (
                 (gb->cart_mode_select || gb->mbc != 1) && gb->cart_ram_bank < gb->num_ram_banks
@@ -1195,6 +1197,8 @@ __shell uint8_t __gb_read_full(gb_s* gb, const uint_fast16_t addr)
             {
                 return gb->gb_cart_ram[addr - CART_RAM_ADDR + (gb->cart_ram_bank * CRAM_BANK_SIZE)];
             }
+            else if (!gb->num_ram_banks)
+                return 0xFF; /* esp32-gameboy: clock-only MBC3 (0x0F) has no RAM. */
             else
                 return gb->gb_cart_ram[addr - CART_RAM_ADDR];
         }
@@ -1658,9 +1662,16 @@ __shell void __gb_write_full(gb_s* gb, const uint_fast16_t addr, const uint8_t v
             }
             else if (gb->mbc == 3 && gb->cart_ram_bank >= 0x08)
             {
-                size_t idx = gb->cart_ram_bank - 0x08;
-                CB_ASSERT(idx < PEANUT_GB_ARRAYSIZE(gb->cart_rtc));
-                gb->cart_rtc[idx] = val;
+                /* esp32-gameboy: ignore banks past 0x0C, keep only implemented bits, and mark the
+                 * battery save dirty so a clock the game sets is persisted. */
+                static const uint8_t rtc_mask[5] = {0x3F, 0x3F, 0x1F, 0xFF, 0xC1};
+                if (gb->cart_ram_bank <= 0x0C)
+                {
+                    size_t idx = gb->cart_ram_bank - 0x08;
+                    const uint8_t masked = val & rtc_mask[idx];
+                    gb->direct.sram_updated |= gb->cart_rtc[idx] != masked;
+                    gb->cart_rtc[idx] = masked;
+                }
             }
             else if (gb->mbc == 7 && addr < 0xB000)
             {
