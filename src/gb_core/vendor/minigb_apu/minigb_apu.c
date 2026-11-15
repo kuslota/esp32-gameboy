@@ -124,6 +124,11 @@ static IRAM_ATTR void update_sweep(struct chan *c)
 	}
 }
 
+static IRAM_ATTR bool is_silent_and_static(const struct chan *c)
+{
+	return !c->volume && !c->env.inc && !c->len.enabled;
+}
+
 static IRAM_ATTR void update_square(struct minigb_apu_ctx *ctx, audio_sample_t *samples,
 		const bool ch2)
 {
@@ -133,6 +138,9 @@ static IRAM_ATTR void update_square(struct minigb_apu_ctx *ctx, audio_sample_t *
 		return;
 
 	set_note_freq(c);
+
+	if (is_silent_and_static(c))
+		return;
 
 	for (uint_fast16_t i = 0; i < AUDIO_NSAMPLES; i += 2) {
 		update_len(ctx, c);
@@ -245,6 +253,9 @@ static IRAM_ATTR void update_noise(struct minigb_apu_ctx *ctx, audio_sample_t *s
 		freq = DMG_CLOCK_FREQ_U / (lfsr_div_lut[c->noise.lfsr_div] << c->freq);
 		c->freq_inc = freq * (uint32_t)(FREQ_INC_REF / AUDIO_SAMPLE_RATE);
 	}
+
+	if (is_silent_and_static(c))
+		return;
 
 	for (uint_fast16_t i = 0; i < AUDIO_NSAMPLES; i += 2) {
 		update_len(ctx, c);
@@ -544,4 +555,13 @@ void minigb_apu_audio_init(struct minigb_apu_ctx *ctx)
 		for(uint_fast8_t i = 0; i < sizeof(wave_init); ++i)
 			minigb_apu_audio_write(ctx, 0xFF30 + i, wave_init[i]);
 	}
+}
+
+void minigb_apu_clamp_counters(struct minigb_apu_ctx *ctx)
+{
+	/* update_freq() relies on freq_counter <= FREQ_INC_REF; above it the
+	 * returned position wraps and one sample becomes a full-scale click. */
+	for (uint_fast8_t i = 0; i < 4; ++i)
+		if (ctx->chans[i].freq_counter > FREQ_INC_REF)
+			ctx->chans[i].freq_counter = FREQ_INC_REF;
 }

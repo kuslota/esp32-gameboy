@@ -14,6 +14,13 @@
 #include "esp_heap_caps.h"
 #endif
 
+_Static_assert(AUDIO_SAMPLE_RATE == GB_AUDIO_SAMPLE_RATE, "minigb_apu must generate at GB_AUDIO_SAMPLE_RATE");
+_Static_assert(GB_AUDIO_FRAME_SAMPLES_MAX ==
+               ((uint64_t)GB_AUDIO_SAMPLE_RATE * GB_FRAME_CYCLES + GB_CLOCK_HZ - 1) / GB_CLOCK_HZ,
+               "largest per-frame block");
+_Static_assert(AUDIO_SAMPLES >= GB_AUDIO_FRAME_SAMPLES_MAX, "APU buffer holds a frame");
+_Static_assert((uint64_t)GB_AUDIO_SAMPLE_RATE * GB_FRAME_CYCLES + GB_CLOCK_HZ <= UINT32_MAX, "sample_phase fits");
+
 int preferences_cgb_speed, preferences_ppu_timing, audio_enabled;
 static gb_s machine;
 static struct minigb_apu_ctx apu;
@@ -233,7 +240,7 @@ bool gb_emulator_frame(bool skip_render)
     gb_run_frame__dmg(&machine);
     machine.direct.frame_skip = false;
     guard_active = false;
-    sample_phase += 32000u * GB_FRAME_CYCLES;
+    sample_phase += GB_AUDIO_SAMPLE_RATE * GB_FRAME_CYCLES;
     pending_audio_count = sample_phase / GB_CLOCK_HZ;
     sample_phase %= GB_CLOCK_HZ;
     minigb_apu_audio_callback(&apu, stereo, pending_audio_count);
@@ -371,6 +378,7 @@ bool gb_emulator_state_load(const uint8_t *src, size_t size)
     free(aligned_core);
     if (error) return false;
     memcpy(&apu, src + sizeof(header) + header.core_size, sizeof(apu));
+    minigb_apu_clamp_counters(&apu);
     memcpy(lcd, src + sizeof(header) + header.core_size + sizeof(apu), GB_PACKED_BYTES);
     machine.audio.audio_mem = apu.audio_mem;
     if (machine.cart_battery && cart_ram_size) {

@@ -367,7 +367,7 @@ void Session::run() {
     uint64_t epoch = static_cast<uint64_t>(esp_timer_get_time());
     uint32_t epochFrames = 0;
     uint64_t lastBatterySave = epoch;
-    int16_t audio[536];
+    int16_t audio[GB_AUDIO_FRAME_SAMPLES_MAX];
     bool playing = true;
     for (;;) {
       if (saveWorkerFailed_.load() && status().phase != Phase::SaveFailed &&
@@ -409,7 +409,7 @@ void Session::run() {
       if (!gb_emulator_frame(false)) {
         update(Phase::Error, gb_emulator_error(), "Game Boy core stopped"); break;
       }
-      size_t samples = gb_emulator_audio_samples(audio, 536);
+      size_t samples = gb_emulator_audio_samples(audio, GB_AUDIO_FRAME_SAMPLES_MAX);
       if (samples) callbacks_.audio(callbacks_.context, audio, samples);
       portENTER_CRITICAL(&statusMux_);
       ++status_.frames;

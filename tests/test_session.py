@@ -106,7 +106,7 @@ void frame(void* context, const uint8_t*, size_t size) {
   static_cast<Signals*>(context)->frames++;
 }
 void audio(void* context, const int16_t*, size_t count) {
-  if (count != 535 && count != 536) std::abort();
+  if (count != 523 && count != 524) std::abort();
   static_cast<Signals*>(context)->audio++;
 }
 template <typename F> void until(F predicate) {

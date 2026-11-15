@@ -103,15 +103,15 @@ with tempfile.TemporaryDirectory(prefix='gb-core-') as tmp:
  assert core.gb_emulator_init(sound_rom,len(sound))
  core.gb_emulator_audio_samples.argtypes=[ctypes.POINTER(ctypes.c_int16),ctypes.c_size_t]
  core.gb_emulator_audio_samples.restype=ctypes.c_size_t
- pcm=(ctypes.c_int16*536)()
+ pcm=(ctypes.c_int16*524)()
  lengths=[]
  for n in range(100):
   assert core.gb_emulator_frame(n%2==0)
-  count=core.gb_emulator_audio_samples(pcm,536)
+  count=core.gb_emulator_audio_samples(pcm,524)
   lengths.append(count)
   if 2<=n<10:assert any(pcm[i] for i in range(count))
- assert set(lengths)=={535,536}
- assert not core.gb_emulator_audio_samples(pcm,536)
+ assert set(lengths)=={523,524}
+ assert not core.gb_emulator_audio_samples(pcm,524)
  # Battery RAM is part of the full state, distinct from its SRAM-only save.
  battery=bytearray(raw);battery[0x147]=3;battery[0x149]=2
  battery[0x14d]=(-sum(battery[0x134:0x14d])-25)&0xff
