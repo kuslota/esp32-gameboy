@@ -8,6 +8,9 @@
 #define GB_PACKED_BYTES (GB_PACKED_ROW * GB_HEIGHT)
 #define GB_CLOCK_HZ 4194304u
 #define GB_FRAME_CYCLES 70224u
+/* 40 MHz crystal / 5 / 256: an ESP32-S3 can clock I2S from the crystal alone at this rate. */
+#define GB_AUDIO_SAMPLE_RATE 31250u
+#define GB_AUDIO_FRAME_SAMPLES_MAX 524u
 #define GB_MAX_ROM_BYTES (2u * 1024u * 1024u)
 #define GB_BTN_A 1u
 #define GB_BTN_B 2u
@@ -50,7 +53,7 @@ bool gb_emulator_rom_save_accepted(const uint8_t *rom, size_t rom_size, size_t s
 typedef bool (*gb_emulator_clock_fn)(int64_t *seconds);
 void gb_emulator_set_clock(gb_emulator_clock_fn clock);
 
-/* One 535/536-sample mono PCM block per frame, exactly 32 kHz over time. */
+/* One 523/524-sample mono PCM block per frame, exactly GB_AUDIO_SAMPLE_RATE over time. */
 size_t gb_emulator_audio_samples(int16_t *dst, size_t capacity);
 size_t gb_emulator_state_size(void);
 bool gb_emulator_state_copy(uint8_t *dst, size_t size);

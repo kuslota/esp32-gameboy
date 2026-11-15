@@ -674,44 +674,6 @@ __core_section("draw") void $(__gb_draw_line)(gb_s* restrict gb)
     for (int i = 0; i < LCD_WIDTH / 16; ++i)
         ((uint32_t*)pixels)[i] = 0;
 
-// remaps 16-bit lo (t1) and hi (t2) colours to 2bbp 32-bit v
-// Optimized version: processes 4 pixels at a time instead of 1
-// Reduces loop iterations from 16 to 4 for better performance
-#define BG_REMAP(pal, t1, t2, v)                                                       \
-    do                                                                                 \
-    {                                                                                  \
-        uint32_t _t1 = (uint16_t)(t1);                                                 \
-        uint32_t _t2 = (uint16_t)(t2);                                                 \
-        uint32_t _v = 0;                                                               \
-                                                                                       \
-        /* Process 4 pixels at a time in reverse order to match original output */     \
-        /* Original builds result from MSB to LSB, so we go from high nibble to low */ \
-        for (int _q = 3; _q >= 0; _q--)                                                \
-        {                                                                              \
-            int _shift = _q * 4;                                                       \
-            uint8_t _nib1 = (_t1 >> _shift) & 0x0F;                                    \
-            uint8_t _nib2 = (_t2 >> _shift) & 0x0F;                                    \
-                                                                                       \
-            /* Extract 4 pixels from the nibbles */                                    \
-            /* Pixel 0: bit 0 of nib1 and nib2 */                                      \
-            /* Pixel 1: bit 1 of nib1 and nib2, etc. */                                \
-            uint8_t _pix0 = ((_nib1 >> 0) & 1) | (((_nib2 >> 0) & 1) << 1);            \
-            uint8_t _pix1 = ((_nib1 >> 1) & 1) | (((_nib2 >> 1) & 1) << 1);            \
-            uint8_t _pix2 = ((_nib1 >> 2) & 1) | (((_nib2 >> 2) & 1) << 1);            \
-            uint8_t _pix3 = ((_nib1 >> 3) & 1) | (((_nib2 >> 3) & 1) << 1);            \
-                                                                                       \
-            /* Lookup colors from palette */                                           \
-            uint8_t _c0 = ((pal) >> (2 * _pix3)) & 3; /* Reverse order within byte */  \
-            uint8_t _c1 = ((pal) >> (2 * _pix2)) & 3;                                  \
-            uint8_t _c2 = ((pal) >> (2 * _pix1)) & 3;                                  \
-            uint8_t _c3 = ((pal) >> (2 * _pix0)) & 3;                                  \
-                                                                                       \
-            _v <<= 8;                                                                  \
-            _v |= (_c0 << 6) | (_c1 << 4) | (_c2 << 2) | _c3;                          \
-        }                                                                              \
-        (v) = _v;                                                                      \
-    } while (0)
-
     /* If background is enabled, draw it. */
     if ((gb->gb_reg.LCDC & LCDC_BG_ENABLE) && wx > 0)
     {
@@ -976,19 +938,35 @@ __core_section("draw") void $(__gb_draw_line)(gb_s* restrict gb)
     }
 
     // remap background pixel by palette, and set priority
-    uint32_t pal = gb->gb_reg.BGP;
+    static uint8_t bg_remap_lut[256];
+    static uint8_t bg_remap_pal;
+    static bool bg_remap_valid;
+    if (!bg_remap_valid || bg_remap_pal != gb->gb_reg.BGP)
+    {
+        const uint32_t pal = gb->gb_reg.BGP;
+        for (unsigned n = 0; n < 256; ++n)
+        {
+            const unsigned lo = n & 0x0F, hi = n >> 4;
+            uint32_t v = 0;
+            for (int px = 3; px >= 0; --px)
+            {
+                v |= ((pal >> (2 * (((lo >> px) & 1) | (((hi >> px) & 1) << 1)))) & 3) << (2 * px);
+            }
+            bg_remap_lut[n] = (uint8_t)v;
+        }
+        bg_remap_pal = gb->gb_reg.BGP;
+        bg_remap_valid = true;
+    }
     for (int i = 0; i < LCD_WIDTH / 16; ++i)
     {
         uint16_t* p = (uint16_t*)(void*)pixels + (2 * i);
         uint16_t t0 = p[0];
         uint16_t t1 = p[1];
 
-        // Initialize rm to 0. This is required because the BG_REMAP macro reads
-        // from the variable before it is fully written to.
-        uint32_t rm = 0;
-#pragma GCC unroll 16
-        BG_REMAP(pal, t0, t1, rm);
-        *(uint32_t*)p = rm;
+        *(uint32_t*)p = (uint32_t)bg_remap_lut[((t0 & 0x0F) | ((t1 & 0x0F) << 4))] |
+                        ((uint32_t)bg_remap_lut[(((t0 >> 4) & 0x0F) | (t1 & 0xF0))] << 8) |
+                        ((uint32_t)bg_remap_lut[(((t0 >> 8) & 0x0F) | ((t1 >> 4) & 0xF0))] << 16) |
+                        ((uint32_t)bg_remap_lut[(((t0 >> 12) & 0x0F) | ((t1 >> 8) & 0xF0))] << 24);
         ((uint16_t*)line_priority)[i] = (t1 | t0) ^ 0xFFFF;
     }
 

@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 #ifndef AUDIO_SAMPLE_RATE
-# define AUDIO_SAMPLE_RATE	32000
+# define AUDIO_SAMPLE_RATE	31250
 #endif
 
 /* The audio output format is in platform native endian. */
@@ -40,10 +40,10 @@ typedef int32_t audio_sample_t;
 #define VERTICAL_SYNC		(DMG_CLOCK_FREQ/SCREEN_REFRESH_CYCLES)
 #endif
 
-/* Maximum audio samples in each channel for one 32 kHz Game Boy frame. */
+/* Maximum audio samples in each channel for one 31.25 kHz Game Boy frame. */
 //#define AUDIO_SAMPLES		((unsigned)(AUDIO_SAMPLE_RATE / VERTICAL_SYNC))
 #ifndef AUDIO_SAMPLES
-#define AUDIO_SAMPLES		536
+#define AUDIO_SAMPLES		524
 #endif
 /* Number of audio channels. The audio output is in interleaved stereo format.*/
 #define AUDIO_CHANNELS		2
@@ -157,3 +157,9 @@ void minigb_apu_audio_write(struct minigb_apu_ctx *ctx,
  * \param ctx Library context.
  */
 void minigb_apu_audio_init(struct minigb_apu_ctx *ctx);
+
+/**
+ * Bring a context restored from a state saved at a higher AUDIO_SAMPLE_RATE
+ * back within range. No effect on a context saved at this rate.
+ */
+void minigb_apu_clamp_counters(struct minigb_apu_ctx *ctx);

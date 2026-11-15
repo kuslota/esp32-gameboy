@@ -97,8 +97,9 @@ It returns false once the core has stopped on an illegal opcode;
   pixels per byte with the leftmost pixel in the low bits, 40 bytes per row
   (`GB_PACKED_BYTES` in total). Shade 0 is lightest and 3 darkest.
 - `gb_emulator_audio_samples(dst, capacity)` copies the mono signed 16-bit PCM
-  of the last frame: 535 or 536 samples, exactly 32 kHz over time. Provide room
-  for 536. It returns 0 when there is nothing new.
+  of the last frame: 523 or 524 samples, exactly 31.25 kHz
+  (`GB_AUDIO_SAMPLE_RATE`) over time. Provide room for
+  `GB_AUDIO_FRAME_SAMPLES_MAX` (524). It returns 0 when there is nothing new.
 - `gb_emulator_validate_rom`, `gb_emulator_rom_save_size` and
   `gb_emulator_rom_save_accepted` inspect a ROM without starting it. A clock
   cartridge writes RAM plus `GB_RTC_FOOTER_BYTES`, but also loads RAM-only and
@@ -228,7 +229,7 @@ Callbacks run on the emulator task and must copy data before returning:
 - The frame callback gets a borrowed 5,760-byte 160x144 image in the
   `gb_emulator_pixels` format. It fires for every emulated frame, about 60 times
   a second; a display task can take the latest frame at its own refresh rate.
-- The audio callback gets 535 or 536 signed mono samples at 32 kHz per frame.
+- The audio callback gets 523 or 524 signed mono samples at 31.25 kHz per frame.
 - The button callback returns the `gameboy::Button` bits: A, B, Select, Start,
   Right, Left, Up, Down.
 
